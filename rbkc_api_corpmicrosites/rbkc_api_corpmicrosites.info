@@ -1,0 +1,7 @@
+name = RBKC API Corp Microsites
+description = Extensions to RBKC API for Corp Microsites. For Domain Access enabled corp microsites only.
+core = 7.x
+package = RBKC
+
+dependencies[] = rbkc_api
+dependencies[] = domain

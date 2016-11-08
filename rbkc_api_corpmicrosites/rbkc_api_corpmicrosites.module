@@ -1,0 +1,131 @@
+<?php
+
+// function rbkc_api_corpmicrosites_rbkc_api_queue_item_alter(&$queue_item) {
+// 	watchdog('rbkc_api_hook', '_rbkc_api_queue_item_alter q item: '.print_r($queue_item, true));
+// }
+
+// function rbkc_api_corpmicrosites_rbkc_api_user_pre_create($data, $queue_item) {
+	// watchdog('rbkc_api_hook', '_rbkc_api_user_pre_create: '.print_r($data, true));
+	// watchdog('rbkc_api_hook', '_rbkc_api_user_pre_create q item: '.print_r($queue_item, true));
+// }
+
+/**
+ * Implementation of hook_rbkc_api_user_post_create()
+ */
+function rbkc_api_corpmicrosites_rbkc_api_user_post_create($user, $queue_item) {
+	
+	// If the REST request did not provide a domain name, stop processing
+	if (!isset($queue_item['request_data']['domains'])) {
+		return;
+	}
+
+	$requested_domains = $queue_item['request_data']['domains'];
+	$requested_domain_ids = _rbkc_api_corpmicrosites_path_ids($requested_domains);
+	
+	// If the domain in the REST request doesn't exist in this site, stop
+	if (empty($requested_domain_ids)) {
+		return;
+	}
+	
+	/** Give user access to the required Domain Access domains... **/
+	
+	$user_domains = array();
+	foreach ($requested_domain_ids as $domain_id => $domain_path) {
+		$user_domains[$domain_id] = $domain_id;
+	}
+	$domain_user_values = array('domain_user' => $user_domains);
+	domain_user_save($domain_user_values, $user, '');
+
+	/** Set the appropriate user roles for each domain... **/
+	
+	// We're doing this by calling the sorm submit handler
+  // for subfolders_domain_roles_form()
+  
+  // Get all the relevant domains for this user to access
+  $form_values_domain_ids = array();
+  foreach ($user_domains as $key => $domain_id) {
+    $form_values_domain_ids[$domain_id] = 1;
+  }
+
+  // For each role assigned to this user, let the user have that
+  // role in each of her domains. We initilaise this array
+  // with the user's user_id because the form
+  // submit handler needs this uid.
+  $form_values_roles_domains = array(0 => array('all' => $user->uid));
+  
+  foreach ($user->roles as $rid => $role_name) {
+    $form_values_roles_domains[$rid] = $form_values_domain_ids;
+  }
+  
+  // Format the form_state array to pass to
+  // the form submit handler
+  $form_values = array('values' => array(
+      'subfolders_domain_role' => $form_values_roles_domains,
+  ));
+  
+  // Call subfolders_roles admin form submit handler
+  module_load_include('inc', 'subfolders_domain', 'subfolders_domain.admin');
+  subfolders_domain_roles_form_submit(array(), $form_values);
+  
+// For ref, form values should be like the following example
+//  $form_values = array(
+//    'values' => array(
+//      'subfolders_domain_role' => array(
+//        0 => array(
+//          'all' => $user->uid,  // the form submit handler needs this uid
+//        ),
+//        5 => array(  // 5 is the rid
+//          17 => 1,   // 17 is a domain_id
+//          18 => 1,   // 1 means apply this role to this domain
+//        )
+//      )
+//    )
+//  );
+
+}
+
+/**
+ * Returns list of domains and the given user's roles in each site
+ * @param $user User object
+ * @return array(site_id => role_name)
+ */
+function _rbkc_api_corpmicrosites_subfolder_roles($user) {
+  $all_subfolders_roles = variable_get('subfolders_domain_roles', array());
+  
+  return array();
+}
+
+
+
+/**
+ * Checks to see if $domain_paths exist on this site.
+ * For each path that does exist, its domain ID is returned.
+ * @param  array $domain_paths The paths to check.
+ * @return mixed Domain ID, or FALSE.
+ */
+function _rbkc_api_corpmicrosites_path_ids($requested_domain_paths) {
+	$all_domain_paths = rbkc_api_corpmicrosites_get_all_domains();
+	$requested_ids_paths = array();
+	foreach ($all_domain_paths as $domain_id => $domain_path) {
+		if (in_array($domain_path, $requested_domain_paths)) {
+			$requested_ids_paths[$domain_id] = $domain_path;
+		}
+	}
+	return $requested_ids_paths;
+}
+
+/**
+ * Returns a list of all domain subfolder names on this site
+ * @return array List of domain IDs
+ */
+function rbkc_api_corpmicrosites_get_all_domains() {
+	$domains = domain_domains();
+	$ids_paths = array();
+	foreach ($domains as $domain_id => $domain_data) {
+		list($domain_name, $microsite_path) = explode('/', $domain_data['subdomain']);
+		if ($microsite_path) {
+			$ids_paths[$domain_id] = $microsite_path;			
+		}
+	}
+	return $ids_paths;
+}

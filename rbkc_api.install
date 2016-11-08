@@ -1,0 +1,25 @@
+<?php
+
+/**
+ * Create a new user api_user
+ */
+function rbkc_api_update_7000() {
+  // Create a new user with username "api_user" with admin role
+  $password = user_password(10);
+  
+  //set up the user fields
+  $fields = array(
+    'name' => 'api_user',
+    'mail' => 'api_user@rbkc.gov.uk',
+    'pass' => $password,
+    'status' => 1,
+    'init' => 'api_user@rbkc.gov.uk',
+    'roles' => array(
+      DRUPAL_AUTHENTICATED_RID => 'authenticated user',
+      3 => 'administrator',
+    ),
+  );
+  
+  user_save('', $fields);
+}
+

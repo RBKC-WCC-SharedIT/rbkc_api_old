@@ -1,0 +1,73 @@
+<?php
+
+function rbkc_api_services_resources() {
+	$resources = array(
+		'needs-review' => array(
+			'operations' => array(
+				'index' => array(
+					'file' => array('type' => 'inc', 'module' => 'rbkc_api', 'name' => 'resources/rbkc_api_resources'),
+					'callback' => '_rbkc_api_needs_review_retrieve',
+					'access arguments' => array('access content'),
+          'args' => array(
+            array(
+              'name' => 'site',
+              'optional' => TRUE,
+              'source' => array('param' => 'site'),
+              'description' => t('The microsite name'),
+              'type' => 'string',
+            ),
+          ),
+				),
+			),
+		),
+		'rbkc-user' => array(
+			'operations' => array(
+				'create' => array(
+					'file' => array('type' => 'inc', 'module' => 'rbkc_api', 'name' => 'resources/rbkc_api_resources'),
+					'callback' => '_rbkc_api_user_create',
+					'access arguments' => array('administer users'),
+					'args' => array(
+            array(
+              'name' => 'user_data',
+              'optional' => FALSE,
+              'source' => 'data',
+              'description' => 'Data sent through the REST call',
+              'type' => 'array',
+            ),
+					),
+					'help' => t('Creates a new user on this site.'),
+				),
+			),
+		),		
+	);
+
+	return $resources;
+}
+
+/**
+ * Returns true if a user with $username and $email already exist
+ * @param $username
+ * @param $email
+ * @return boolean
+ */
+function rbkc_api_user_exists($username, $email) {
+  $sql = 'SELECT uid FROM users WHERE name = :name AND mail = :mail LIMIT 1';
+  $result = db_query($sql, array(':name' => $username, ':mail' => $email))->fetchfield();
+  return $result? $result : false;
+}
+
+function rbkc_api_form_user_profile_form_alter(&$form, &$form_state) {
+  // replace the default user cancel submit handler with our own
+  $submit_handler_key = array_search('user_edit_cancel_submit', $form['actions']['cancel']['#submit']);
+  if ($submit_handler_key !== false) {
+    $form['actions']['cancel']['#submit'][$submit_handler_key] = 'rbkc_api_user_cancel';
+  }
+}
+
+function rbkc_api_user_cancel($form, &$form_state) {
+  if ($form_state['user']->name == 'api_user') {
+    form_set_error('name', t('You are not allowed to delete the user "api_user". It is required for the RBKC Dashboard to work.'));
+  } else {
+    user_edit_cancel_submit($form, $form_state);
+  }
+}
