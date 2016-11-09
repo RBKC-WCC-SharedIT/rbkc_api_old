@@ -10,6 +10,34 @@
 // }
 
 /**
+ * Implementation of hook_needs_review_callback_alter
+ */
+function rbkc_api_corpmicrosites_needs_review_callback_alter(&$callback_name) {
+  $callback_name = 'rbkc_api_corpmicrosites_needs_review_count';
+}
+
+
+function rbkc_api_corpmicrosites_needs_review_count($sitename) {
+  $paths_ids = array_flip(_rbkc_api_corpmicrosites_path_ids(array($sitename)));
+  
+  if (!isset($paths_ids[$sitename])) {
+    return t('Error. Unknown site path "'.$sitename.'"');
+  }
+  $domain_id = $paths_ids[$sitename];
+  
+  $query = db_select('workbench_moderation_node_history', 'wmnh')
+    ->fields('wmnh');
+  $query->join('node_access', 'na', 'na.nid = wmnh.nid'); // node access maps node to domain
+  $query->condition('wmnh.state', "needs_review"); // only want 'needs_review' status
+  $query->condition('wmnh.current', 1);  // where needs_review is the CURRENT status (table stores history)
+  $query->condition('na.gid', $domain_id); // only want pages fo current domain
+  $results = $query->execute();
+  
+  return $results->rowCount(); // return the number of rows found
+}
+
+
+/**
  * Implementation of hook_rbkc_api_user_post_create()
  */
 function rbkc_api_corpmicrosites_rbkc_api_user_post_create($user, $queue_item) {

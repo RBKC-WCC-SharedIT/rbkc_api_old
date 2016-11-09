@@ -1,43 +1,34 @@
 <?php
 
+define('RBKC_API_DEFAULT_REQUESTER_UID', 1);
+
 function _rbkc_api_access_retrieve() {
 	return TRUE;
 }
 
 function _rbkc_api_needs_review_retrieve($sitename = '') {
-//  watchdog('rbkc_api', 'sitename: '.$sitename);
-	return _rbkc_api_workbench_get_needs_review_count($sitename);
+  $callback_name = '_rbkc_api_workbench_get_needs_review_count';
+  drupal_alter('needs_review_callback', $callback_name); // Generate hook_needs_review_callback_alter
+  return $callback_name($sitename);
 }
 
 /* WORKBENCH RESOURCE */
 
 function _rbkc_api_workbench_get_needs_review_count($sitename) {
-  $paths_ids = array_flip(_rbkc_api_corpmicrosites_path_ids(array($sitename)));
+  $query = db_select('workbench_moderation_node_history', 'wmnh')
+    ->fields('wmnh');
+  $query->join('node_access', 'na', 'na.nid = wmnh.nid'); // node access maps node to domain
+  $query->condition('wmnh.state', "needs_review"); // only want 'needs_review' status
+  $query->condition('wmnh.current', 1);  // where needs_review is the CURRENT status (table stores history)
+  $results = $query->execute();
   
-  if (!isset($paths_ids[$sitename])) {
-    return t('Error. Unknown site path "'.$sitename.'"');
-  }
-  $domain_id = $paths_ids[$sitename];
-  
-//	$domain = domain_get_domain();
-  
-	$query = db_select('workbench_moderation_node_history', 'wmnh')
-		->fields('wmnh');
-	$query->join('node_access', 'na', 'na.nid = wmnh.nid'); // node access maps node to domain
-	$query->condition('wmnh.state', "needs_review"); // only want 'needs_review' status
-	$query->condition('wmnh.current', 1);  // where needs_review is the CURRENT status (table stores history)
-	$query->condition('na.gid', $domain_id); // only want pages fo current domain
-	$results = $query->execute();	
-
-	return $results->rowCount(); // return the number of rows found
+  return $results->rowCount(); // return the number of rows found
 }
 
 
 /* USER RESOURCE */
 
-
 function _rbkc_api_user_create($user_data) {
-//	 watchdog('_rbkc_api_user_create', 'User data: '.print_r($user_data, true));
 	global $user;
 	$q_item = array(
 		'worker_include_file' => array(
@@ -53,6 +44,25 @@ function _rbkc_api_user_create($user_data) {
 	rbkc_api_queue_add($q_item);
 	return 'Queued user creation for: '.$user_data['username'].' <'.$user_data['email'].'>';
 }
+
+function _rbkc_api_user_update($username, $user_data) {
+  $q_item = array(
+    'worker_include_file' => array(
+      'type' => 'inc',
+      'module' => 'rbkc_api',
+      'name' => 'resources/rbkc_api_resources',
+    ),
+    'worker_callback' => 'rbkc_api_user_update_queue_worker',
+    'requester_uid' => isset($user_data['requester_uid'])? $user_data['requester_uid'] : RBKC_API_DEFAULT_REQUESTER_UID,
+    'request_data' => $user_data,
+    'target_username' => $username,
+  );
+  drupal_alter('rbkc_api_queue_item', $q_item);
+  rbkc_api_queue_add($q_item);
+  return 'Queued user update for: '.$user_data['username'].' <'.$user_data['email'].'>';
+}
+
+/********************************/
 
 /**
  * Callback from queue processing 
@@ -77,9 +87,7 @@ function rbkc_api_user_create_queue_worker($item) {
 		),
 		'data' => array('creator_uid' => $item['requester_uid']),		
 	);
-
-//	watchdog('rbkc_api_user_create_queue_worker', 'Creating user: '.print_r($fields, true));
-
+  
 	// Call hook_rbkc_api_user_pre_create for pre-save 
 	module_invoke_all('rbkc_api_user_pre_create', $fields, $item);
 
