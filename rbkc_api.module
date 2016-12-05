@@ -1,13 +1,13 @@
 <?php
 
 function rbkc_api_services_resources() {
-	$resources = array(
-		'needs-review' => array(
-			'operations' => array(
-				'index' => array(
-					'file' => array('type' => 'inc', 'module' => 'rbkc_api', 'name' => 'resources/rbkc_api_resources'),
-					'callback' => '_rbkc_api_needs_review_retrieve',
-					'access arguments' => array('access content'),
+  $resources = array(
+    'needs-review' => array(
+      'operations' => array(
+        'index' => array(
+          'file' => array('type' => 'inc', 'module' => 'rbkc_api', 'name' => 'resources/rbkc_api_resources'),
+          'callback' => '_rbkc_api_needs_review_retrieve',
+          'access arguments' => array('access content'),
           'args' => array(
             array(
               'name' => 'site',
@@ -17,17 +17,17 @@ function rbkc_api_services_resources() {
               'type' => 'string',
             ),
           ),
-				),
-			),
-		),
-		'rbkc-user' => array(
-			'operations' => array(
-			  
-				'create' => array(
-					'file' => array('type' => 'inc', 'module' => 'rbkc_api', 'name' => 'resources/rbkc_api_resources'),
-					'callback' => '_rbkc_api_user_create',
-					'access arguments' => array('administer users'),
-					'args' => array(
+        ),
+      ),
+    ),
+    'rbkc-user' => array(
+      'operations' => array(
+        
+        'create' => array(
+          'file' => array('type' => 'inc', 'module' => 'rbkc_api', 'name' => 'resources/rbkc_api_resources'),
+          'callback' => '_rbkc_api_user_create',
+          'access arguments' => array('administer users'),
+          'args' => array(
             array(
               'name' => 'user_data',
               'optional' => false,
@@ -35,10 +35,10 @@ function rbkc_api_services_resources() {
               'description' => 'Data sent through the REST call',
               'type' => 'array',
             ),
-					),
-					'help' => t('Creates a new user on this site.'),
-				),
-        
+          ),
+          'help' => t('Creates a new user on this site.'),
+        ),
+
 //        'update' => array(
 //          'file' => array('type' => 'inc', 'module' => 'rbkc_api', 'name' => 'resources/rbkc_api_resources'),
 //          'callback' => '_rbkc_api_user_update',
@@ -78,12 +78,12 @@ function rbkc_api_services_resources() {
           'access arguments' => array('administer users'),
           'file' => array('type' => 'inc', 'module' => 'rbkc_api', 'name' => 'resources/rbkc_api_resources'),
         ),
-        
-			),
-		),		
-	);
-
-	return $resources;
+      
+      ),
+    ),
+  );
+  
+  return $resources;
 }
 
 /**
