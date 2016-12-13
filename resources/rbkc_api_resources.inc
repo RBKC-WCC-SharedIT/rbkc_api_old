@@ -14,14 +14,13 @@ function _rbkc_api_needs_review_retrieve($sitename = '') {
 
 /* WORKBENCH RESOURCE */
 
-function _rbkc_api_workbench_get_needs_review_count($sitename) {
+function _rbkc_api_workbench_get_needs_review_count() {
   $query = db_select('workbench_moderation_node_history', 'wmnh')
     ->fields('wmnh');
-  $query->join('node_access', 'na', 'na.nid = wmnh.nid'); // node access maps node to domain
   $query->condition('wmnh.state', "needs_review"); // only want 'needs_review' status
   $query->condition('wmnh.current', 1);  // where needs_review is the CURRENT status (table stores history)
   $results = $query->execute();
-  
+   
   return $results->rowCount(); // return the number of rows found
 }
 
