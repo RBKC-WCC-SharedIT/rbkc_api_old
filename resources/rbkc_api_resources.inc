@@ -2,6 +2,8 @@
 
 define('RBKC_API_DEFAULT_REQUESTER_UID', 1);
 
+class APIUserNotFoundException extends Exception {}
+
 function _rbkc_api_access_retrieve() {
 	return TRUE;
 }
@@ -64,7 +66,10 @@ function _rbkc_api_user_update($username, $user_data) {
 /********************************/
 
 /**
- * Callback from queue processing 
+ * User create callback. This is run when an incoming user-create request
+ * is being picked up from the queue and processed.
+ * @param array $item The queue item being processed.
+ * @return null
  */
 function rbkc_api_user_create_queue_worker($item) {
   if (rbkc_api_user_exists($item['request_data']['username'], $item['request_data']['email'])) {
@@ -95,6 +100,47 @@ function rbkc_api_user_create_queue_worker($item) {
 	// Call hook_rbkc_api_user_pre_create for post-save 
 	module_invoke_all('rbkc_api_user_post_create', $account, $item);
 }
+
+/**
+ * User update callback. This is run when an incoming user-update request
+ * is being picked up from the queue and processed.
+ * @param array $item The queue item being processed.
+ * @return null
+ */
+function rbkc_api_user_update_queue_worker($item) {
+  if (!isset($item['request_data']['target_username'])) {
+    throw new APIUserNotFoundException("Target username was not provided in REST user update request");
+  }
+  
+  $target_username = $item['request_data']['target_username'];
+  $target_user_obj = user_load_by_name($target_username);
+  
+  if (empty($target_user_obj)) {
+    throw new APIUserNotFoundException('Received API request update user '.$target_username.' but username is not found.');
+  }
+
+  $save_data = array();
+  foreach ($item['request_data'] as $field => $value) {
+    switch ($field) {
+      case 'fullname':
+        $save_data['field_full_name'][LANGUAGE_NONE][0]['value'] = $value;
+        break;
+      case 'name':
+        $save_data['name'] = $value;
+        break;
+      case 'mail':
+        $save_data['mail'] = $value;
+        break;
+      case 'status':
+        $save_data['status'] = $value;
+        break;
+    }
+  }
+  if ($save_data) {
+    user_save($target_user_obj, $save_data);
+  }
+}
+
 
 /**
  * Translates an array of rol names into array of rid => role_name
