@@ -88,12 +88,16 @@ function rbkc_api_services_resources() {
 
 /**
  * Returns true if a user with $username and $email already exist
- * @param $username
- * @param $email
+ * @param string $username
+ * @param string $email (optional)
  * @return boolean
  */
-function rbkc_api_user_exists($username, $email) {
-  $sql = 'SELECT uid FROM users WHERE name = :name AND mail = :mail LIMIT 1';
+function rbkc_api_user_exists($username, $email = null) {
+  $sql = 'SELECT uid FROM users WHERE name = :name';
+  if (!is_null($email)) {
+    $sql .= ' AND mail = :mail';
+  }
+  $sql .= ' LIMIT 1';
   $result = db_query($sql, array(':name' => $username, ':mail' => $email))->fetchfield();
   return $result? $result : false;
 }
